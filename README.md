@@ -1,0 +1,59 @@
+# Sports Injury Follow-up Scheduler
+
+A console application for a sports department to manage fictional injury cases,
+schedule follow-up appointments, assign rehab tasks, and auto-reschedule missed
+follow-ups with rule explanations.
+
+## How to run
+
+```
+python main.py          # Interactive menu
+python main.py --demo   # Non-interactive demo
+python test_smoke.py    # Smoke tests
+```
+
+## Menu options
+
+| # | Action |
+|---|--------|
+| 1 | Add case |
+| 2 | Schedule follow-up |
+| 3 | Upcoming follow-ups |
+| 4 | Missed follow-ups |
+| 5 | Mark done |
+| 6 | AUTO-RESCHEDULE missed |
+| 7 | Today's queue |
+| 8 | Set per-case interval override |
+| 9 | Case history |
+| 10 | Statistics |
+| 11 | Audit log |
+| 12 | Regenerate demo data |
+| 0 | Exit |
+
+## Unit 1 topic mapping
+
+| Topic | Where used |
+|-------|-----------|
+| int, float, str, bool, None | config.py (constants), store.py (age validation), rules.py (explain) |
+| list | config.py (SPORTS, PHYSIOS), store.py (followups), scheduler.py |
+| tuple | audit.py (AUDIT_LOG entries), store.py (FollowUp namedtuple) |
+| dict | config.py (INJURY_TASKS, DEFAULT_RULES), store.py (CaseRegistry) |
+| set | config.py (INJURY_TASKS values, SEVERITY_TASKS), scheduler.py (assign_tasks union) |
+| functions (params, args, return) | All modules |
+| local vs global scope | store.py (new_case_id, new_followup_id use `global`) |
+| lambda | scheduler.py (get_upcoming, get_missed sort key) |
+| list comprehension | scheduler.py (get_upcoming, get_missed, booked) |
+| set comprehension | — (set union used instead) |
+| dict comprehension | — (not needed) |
+| iterators (__iter__, __next__, StopIteration) | scheduler.py (SlotFinder, PhysioRoundRobin) |
+| decorators | audit.py (@audit), scheduler.py (@validate_case_id) |
+| while / for / if | main.py (menu loop), store.py, scheduler.py |
+| try / except | main.py (input validation, EOFError), store.py (CaseRegistry) |
+| f-strings | All modules (output formatting) |
+| UserDict subclass | store.py (CaseRegistry) |
+| namedtuple | store.py (FollowUp) |
+| OrderedDict | store.py (history per case) |
+| Counter | scheduler.py (booked(), stats()) |
+| defaultdict | scheduler.py (stats() missed by physio) |
+| deque | scheduler.py (todays_queue) |
+| ChainMap | rules.py (build_rules) |
