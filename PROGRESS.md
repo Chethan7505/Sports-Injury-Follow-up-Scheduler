@@ -9,3 +9,10 @@ Added pick() helper for case-insensitive input matching; added 1-30 range check 
 Removed unused imports (datetime, FollowUp in main.py; OrderedDict, config in test_smoke.py).
 Assumption: capped demo pending follow-ups at 3 per day in store.py so smoke tests stay valid on any date.
 Next: Phase 1 viva demo.
+
+## 2026-11-26 (v1.1)
+Enforced data realism: max 3 per day, no same-case same-day duplicates, >=2 due today, >=5 missed (>=2 physios).
+Implemented severity triage rescheduling (severe > moderate > mild, ties broken by oldest date).
+Added slot note line for diverted appointments and updated default Why explanation text.
+Individual rebooking events and count summary logged in audit; added v1.1 smoke tests.
+Next: Phase 1 student viva presentation.

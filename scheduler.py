@@ -3,7 +3,7 @@ import datetime  # Unit1: import
 from collections import Counter, defaultdict, deque  # Unit1: collections
 
 from config import PHYSIOS, INJURY_TASKS, SEVERITY_TASKS
-from audit import audit
+from audit import audit, log_audit
 from store import registry, followups, history, new_followup_id, FollowUp
 from rules import build_rules, explain
 
@@ -87,9 +87,10 @@ def _schedule_followup_inner(case_id, start=None):
     earliest = (start or today) + datetime.timedelta(days=interval)
     slots = SlotFinder(earliest)
     current_booked = booked()
+    case_pending_dates = {f.due for f in followups if f.case_id == case_id and f.status == "pending"}
 
     for day in slots:  # Unit1: for with iterator
-        if current_booked[day] < max_per_day:
+        if current_booked[day] < max_per_day and day not in case_pending_dates:
             case = registry[case_id]
             physio = next(_physio_cycle)
             tasks = assign_tasks(case)
@@ -100,10 +101,13 @@ def _schedule_followup_inner(case_id, start=None):
 
             # Build explanation
             layer, value, overridden = explain(rules, "interval_days")
-            explanation = f"interval_days = {value} from the {layer.upper()}"
-            if overridden:
-                parts = [f"{ln} = {v}" for ln, v in overridden]  # Unit1: list comprehension
-                explanation = explanation + f"\n           (overrode: {', '.join(parts)})"
+            if layer == "default":
+                explanation = f"interval_days = {value} from the DEFAULT rule (no sport/severity rule matched)"
+            else:
+                explanation = f"interval_days = {value} from the {layer.upper()}"
+                if overridden:
+                    parts = [f"{ln} = {v}" for ln, v in overridden]  # Unit1: list comprehension
+                    explanation = explanation + f"\n           (overrode: {', '.join(parts)})"
 
             # Log to history
             if case_id not in history:
@@ -159,7 +163,12 @@ def mark_done(fid):
 @audit
 def auto_reschedule():
     """Reschedule all missed follow-ups. Return list of explanation blocks."""
-    missed = get_missed()
+    # Unit1: sorted with lambda key / dict lookup / tuple comparison (triage order)
+    severity_rank = {"severe": 0, "moderate": 1, "mild": 2}
+    missed = sorted(
+        get_missed(),
+        key=lambda f: (severity_rank.get(registry[f.case_id]["severity"], 99), f.due)
+    )
     explanations = []  # Unit1: list
     today = datetime.date.today()
 
@@ -171,6 +180,10 @@ def auto_reschedule():
                 break
 
         case = registry[f.case_id]
+        rules = build_rules(f.case_id)
+        interval = rules["interval_days"]
+        wanted_date = today + datetime.timedelta(days=interval)
+
         result = _schedule_followup_inner(f.case_id, start=today)
         if result is None:
             continue
@@ -178,14 +191,21 @@ def auto_reschedule():
 
         if new_fu is not None:
             tasks_str = ", ".join(sorted(new_fu.tasks))
+            slot_note = (
+                f"  -> Slot note: wanted {wanted_date.strftime('%a %d-%b-%Y')} (full or unavailable), next free slot used\n"
+                if new_fu.due != wanted_date else ""
+            )
             block = (
                 f"{f.fid} | {case['name']} ({case['sport']}, {case['injury']}, "
                 f"{case['severity'].upper()}) | missed {f.due.strftime('%a %d-%b-%Y')}\n"
                 f"  -> Rescheduled: {new_fu.due.strftime('%a %d-%b-%Y')} with {new_fu.physio}\n"
                 f"  -> Tasks: {tasks_str}\n"
+                f"{slot_note}"
                 f"  -> Why: {why}"
             )
             explanations.append(block)
+            log_audit("auto_reschedule",
+                      f"{f.fid} -> {new_fu.fid} ({new_fu.case_id}, {new_fu.due.strftime('%a %d-%b-%Y')})")
 
     return explanations
 

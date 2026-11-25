@@ -82,10 +82,51 @@ def test_max_per_day_not_exceeded():
     print("  PASS: No day exceeds max_per_day")
 
 
+def test_v1_1_spec_requirements():
+    """Spec v1.1 checks: no duplicates, max 3, 2 due today, and severe triage order."""
+    generate_demo_data()
+
+    # a. after generate_demo_data(): no case has two pending on one date, max 3 per date
+    pending_case_dates = [(f.case_id, f.due) for f in followups if f.status == "pending"]
+    assert len(pending_case_dates) == len(set(pending_case_dates)), "Case has multiple pending follow-ups on same date"
+    for day, count in booked().items():
+        assert count <= 3, f"Date {day} has {count} pending bookings (max 3)"
+
+    # b. after generate_demo_data(): at least 2 follow-ups due today
+    today = datetime.date.today()
+    due_today = [f for f in followups if f.due == today and f.status == "pending"]
+    assert len(due_today) >= 2, f"Expected >= 2 follow-ups due today, got {len(due_today)}"
+
+    # Check at least 5 missed with at least 2 physios
+    missed_before = get_missed()
+    assert len(missed_before) >= 5, f"Expected >= 5 missed, got {len(missed_before)}"
+    assert len({f.physio for f in missed_before}) >= 2, "Expected >= 2 different physios among missed"
+
+    # d. triage: if any severe case was missed, the first rebooked follow-up belongs to a severe case
+    has_severe = any(registry[f.case_id]["severity"] == "severe" for f in missed_before)
+
+    explanations = auto_reschedule()
+
+    # c. after auto_reschedule(): get_missed() is empty and the checks in (a) still hold
+    assert len(get_missed()) == 0, "Missed follow-ups remain after auto_reschedule"
+    pending_case_dates_after = [(f.case_id, f.due) for f in followups if f.status == "pending"]
+    assert len(pending_case_dates_after) == len(set(pending_case_dates_after)), "Case has duplicate pending after reschedule"
+    for day, count in booked().items():
+        assert count <= 3, f"Date {day} has {count} pending bookings after reschedule (max 3)"
+
+    if has_severe:
+        assert len(explanations) > 0, "Expected reschedule explanations"
+        first_line = explanations[0].split("\n")[0]
+        assert "SEVERE" in first_line, f"Expected first rebooked follow-up to be SEVERE, got: {first_line}"
+
+    print("  PASS: Spec v1.1 data realism, today's queue, and triage tests")
+
+
 # ----- Run all tests -----
 test_registry_rejects_invalid_severity()
 test_explain_severity_rule()
 test_slotfinder_no_sundays_and_stops()
 test_auto_reschedule_clears_missed()
 test_max_per_day_not_exceeded()
+test_v1_1_spec_requirements()
 print("\n  ALL TESTS PASSED")

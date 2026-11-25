@@ -64,6 +64,20 @@ def _shift_off_sunday(d):
     return d
 
 
+def _find_demo_slot(cid, start_date, direction=1):
+    """Find a date (skipping Sundays) with < 3 pending and no pending for cid."""
+    d = start_date
+    if d.weekday() == 6:
+        d = d + datetime.timedelta(days=1 if direction >= 0 else -1)
+    while True:
+        if d.weekday() != 6:
+            pending_count = sum(1 for f in followups if f.status == "pending" and f.due == d)
+            case_has_pending = any(f.case_id == cid and f.due == d and f.status == "pending" for f in followups)
+            if pending_count < 3 and not case_has_pending:
+                return d
+        d = d + datetime.timedelta(days=1 if direction >= 0 else -1)
+
+
 def generate_demo_data(seed=2026):
     """Create 12 fictional cases with follow-ups for demonstration."""
     global next_case_no, next_fid  # Unit1: global scope
@@ -100,79 +114,111 @@ def generate_demo_data(seed=2026):
         num_fups = random.randint(1, 2)
         for _ in range(num_fups):
             offset = random.randint(-9, 10)
-            due = _shift_off_sunday(today + datetime.timedelta(days=offset))
+            initial_due = _shift_off_sunday(today + datetime.timedelta(days=offset))
             fid = new_followup_id()
             tasks = INJURY_TASKS[injury] | SEVERITY_TASKS[severity]  # Unit1: set union
 
-            if due < today:
+            if initial_due < today:
                 status = random.choice(["done", "pending"])
             else:
                 status = "pending"
 
-            # Unit1: while loop (cap pending bookings per day at 3)
-            while status == "pending" and sum(1 for f in followups if f.status == "pending" and f.due == due) >= 3:
-                due = _shift_off_sunday(due + datetime.timedelta(days=1))
+            if status == "pending":
+                direction = -1 if initial_due < today else 1
+                due = _find_demo_slot(cid, initial_due, direction=direction)
+                if initial_due < today and due >= today:
+                    due = _find_demo_slot(cid, today - datetime.timedelta(days=1), direction=-1)
+            else:
+                due = initial_due
 
             fu = FollowUp(fid=fid, case_id=cid, due=due,
                           physio=physio, status=status, tasks=tasks)
             followups.append(fu)
-            seq = len(history[cid])
-            history[cid][seq] = f"{fid} scheduled on {due.strftime('%a %d-%b-%Y')}"
 
-    # --- GUARANTEE minimums ---
-    # Ensure at least 3 missed (past + pending)
+    # --- GUARANTEE requirements ---
+    # 1. At least 5 missed (due < today and pending)
     past_pending = [i for i, f in enumerate(followups)
                     if f.due < today and f.status == "pending"]
-    need_missed = 3 - len(past_pending)
+    need_missed = 5 - len(past_pending)
     if need_missed > 0:
-        # Find past done records and flip to pending
-        past_done = [i for i, f in enumerate(followups)
-                     if f.due < today and f.status == "done"]
-        for idx in past_done[:need_missed]:
-            followups[idx] = followups[idx]._replace(status="pending")
-            need_missed = need_missed - 1
-        # If still short, move some future follow-ups to the past
-        while need_missed > 0:
-            future = [i for i, f in enumerate(followups)
-                      if f.due >= today and f.status == "pending"]
-            if not future:
+        for idx, f in enumerate(followups):
+            if need_missed <= 0:
                 break
-            idx = future[0]
-            new_due = _shift_off_sunday(today - datetime.timedelta(days=random.randint(1, 5)))
-            followups[idx] = followups[idx]._replace(due=new_due, status="pending")
-            need_missed = need_missed - 1
+            if f.due < today and f.status == "done":
+                slot = _find_demo_slot(f.case_id, f.due, direction=-1)
+                if slot < today:
+                    followups[idx] = f._replace(due=slot, status="pending")
+                    need_missed = need_missed - 1
 
-    # Ensure at least 5 upcoming (today or later + pending)
-    upcoming = [i for i, f in enumerate(followups)
-                if f.due >= today and f.status == "pending"]
-    need_upcoming = 5 - len(upcoming)
-    while need_upcoming > 0:
-        # pick a random case and add a future follow-up
+    while need_missed > 0:
+        future = [i for i, f in enumerate(followups)
+                  if f.due > today and f.status == "pending"]
+        if not future:
+            break
+        idx = future[0]
+        f = followups[idx]
+        slot = _find_demo_slot(f.case_id, today - datetime.timedelta(days=1), direction=-1)
+        followups[idx] = f._replace(due=slot, status="pending")
+        need_missed = need_missed - 1
+
+    # Ensure at least 2 different physios among missed
+    missed_fups = [f for f in followups if f.due < today and f.status == "pending"]
+    physios_in_missed = {f.physio for f in missed_fups}
+    if len(physios_in_missed) < 2 and missed_fups:
+        current_p = missed_fups[0].physio
+        alt_p = [p for p in PHYSIOS if p != current_p][0]
+        for idx, f in enumerate(followups):
+            if f.fid == missed_fups[0].fid:
+                followups[idx] = f._replace(physio=alt_p)
+                break
+
+    # 2. At least 2 pending follow-ups of DIFFERENT cases due TODAY
+    today_pending = [f for f in followups if f.due == today and f.status == "pending"]
+    today_cases = {f.case_id for f in today_pending}
+    if len(today_cases) < 2:
+        for cid in registry:
+            if len(today_cases) >= 2:
+                break
+            if cid in today_cases:
+                continue
+            current_today_count = sum(1 for f in followups if f.due == today and f.status == "pending")
+            if current_today_count >= 3:
+                break
+            candidate_idxs = [i for i, f in enumerate(followups)
+                              if f.case_id == cid and f.status == "pending" and f.due > today]
+            if candidate_idxs:
+                idx = candidate_idxs[0]
+                followups[idx] = followups[idx]._replace(due=today)
+            else:
+                case = registry[cid]
+                fid = new_followup_id()
+                tasks = INJURY_TASKS[case["injury"]] | SEVERITY_TASKS[case["severity"]]
+                fu = FollowUp(fid=fid, case_id=cid, due=today,
+                              physio=case["physio"], status="pending", tasks=tasks)
+                followups.append(fu)
+            today_cases.add(cid)
+
+    # 3. Ensure at least 5 upcoming (today or later + pending)
+    while len([f for f in followups if f.due >= today and f.status == "pending"]) < 5:
         cid = random.choice(list(registry.keys()))
         case = registry[cid]
-        offset = random.randint(1, 10)
-        due = _shift_off_sunday(today + datetime.timedelta(days=offset))
+        slot = _find_demo_slot(cid, today + datetime.timedelta(days=random.randint(1, 10)), direction=1)
         fid = new_followup_id()
         tasks = INJURY_TASKS[case["injury"]] | SEVERITY_TASKS[case["severity"]]
-        fu = FollowUp(fid=fid, case_id=cid, due=due,
+        fu = FollowUp(fid=fid, case_id=cid, due=slot,
                       physio=case["physio"], status="pending", tasks=tasks)
         followups.append(fu)
-        seq = len(history[cid])
-        history[cid][seq] = f"{fid} scheduled on {due.strftime('%a %d-%b-%Y')}"
-        need_upcoming = need_upcoming - 1
 
-    # Ensure at least 2 done
+    # 4. Ensure at least 2 done
     done_count = len([f for f in followups if f.status == "done"])
     need_done = 2 - done_count
     if need_done > 0:
-        past_pending2 = [i for i, f in enumerate(followups)
-                         if f.due < today and f.status == "pending"]
-        # Only flip extras beyond the 3 we guaranteed as missed
-        available = past_pending2[3:]
+        past_pending_idxs = [i for i, f in enumerate(followups)
+                             if f.due < today and f.status == "pending"]
+        available = past_pending_idxs[5:]  # preserve at least 5 missed
         for idx in available[:need_done]:
             followups[idx] = followups[idx]._replace(status="done")
             need_done = need_done - 1
-        # If still need done, create new past done records
         while need_done > 0:
             cid = random.choice(list(registry.keys()))
             case = registry[cid]
@@ -183,3 +229,13 @@ def generate_demo_data(seed=2026):
                           physio=case["physio"], status="done", tasks=tasks)
             followups.append(fu)
             need_done = need_done - 1
+
+    # Rebuild history
+    history.clear()
+    for cid, case in registry.items():
+        history[cid] = OrderedDict()
+        history[cid][0] = f"Case created for {case['name']}"
+    for f in followups:
+        if f.case_id in history:
+            seq = len(history[f.case_id])
+            history[f.case_id][seq] = f"{f.fid} scheduled on {f.due.strftime('%a %d-%b-%Y')}"

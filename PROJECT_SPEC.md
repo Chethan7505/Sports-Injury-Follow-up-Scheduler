@@ -102,3 +102,11 @@ F004 | Ravi (kabaddi, ACL tear, SEVERE) | missed Fri 20-Nov-2026
 
 ## 11. Done when
 python test_smoke.py passes AND python main.py --demo runs without errors AND no forbidden import exists.
+
+## 12. v1.1 changes
+- P1: Capped dates to max 3 pending; prevented same-case same-day duplicates in demo & scheduler.
+- P1: Guaranteed >=5 missed (>=2 physios) and >=2 pending of different cases due today.
+- P2: auto_reschedule sorts missed follow-ups by severity triage, then oldest due date.
+- P2: Added slot note for unavailable wanted dates; updated default Why message.
+- P3: Audit logs individual rebookings (old -> new) and count summary, no raw lists.
+- P4: Smoke tests expanded for v1.1 data realism, today's queue, and triage assertions.
