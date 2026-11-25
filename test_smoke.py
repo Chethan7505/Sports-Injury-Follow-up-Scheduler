@@ -1,8 +1,6 @@
 # test_smoke.py - Smoke tests (plain asserts, no test framework)
 import datetime
-from collections import OrderedDict
 
-from config import SEVERITIES, SPORTS, INJURY_TASKS, PHYSIOS
 from store import CaseRegistry, generate_demo_data, followups, registry
 from rules import build_rules, explain
 from scheduler import SlotFinder, get_missed, auto_reschedule, booked

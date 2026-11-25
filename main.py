@@ -1,13 +1,12 @@
 # main.py - Console UI for the Sports Injury Follow-up Scheduler
 import sys       # Unit1: import
 import os        # Unit1: import
-import datetime  # Unit1: import
 
 from config import (SPORTS, INJURY_TASKS, SEVERITIES, PHYSIOS,
                      CASE_OVERRIDES)
 from audit import show_audit_log
 from store import (registry, followups, history, generate_demo_data,
-                   new_case_id, FollowUp)
+                   new_case_id)
 from scheduler import (schedule_followup, get_upcoming, get_missed,
                        mark_done, auto_reschedule, todays_queue, stats)
 
@@ -44,6 +43,13 @@ def print_followup_table(fups, title):
               f"{injury:<22} {sev:<10} {fmt(f.due):<18} {f.physio:<12} {f.status:<10}")
 
 
+def pick(prompt, options):
+    """Match typed text to a valid option, ignoring upper/lower case."""
+    typed = input(prompt).strip().lower()
+    lookup = {opt.lower(): opt for opt in options}   # Unit1: dict comprehension
+    return lookup.get(typed, typed)
+
+
 def menu_add_case():
     """Menu option 1: Add a new case."""
     print("\n  --- Add Case ---")
@@ -59,17 +65,17 @@ def menu_add_case():
         return
 
     print(f"  Sports: {', '.join(SPORTS)}")
-    sport = input("  Sport: ").strip().lower()
+    sport = pick("  Sport: ", SPORTS)
 
     injuries = list(INJURY_TASKS.keys())
     print(f"  Injuries: {', '.join(injuries)}")
-    injury = input("  Injury: ").strip().lower()
+    injury = pick("  Injury: ", list(INJURY_TASKS))
 
     print(f"  Severities: {', '.join(SEVERITIES)}")
-    severity = input("  Severity: ").strip().lower()
+    severity = pick("  Severity: ", SEVERITIES)
 
     print(f"  Physios: {', '.join(PHYSIOS)}")
-    physio = input("  Physio: ").strip()
+    physio = pick("  Physio: ", PHYSIOS)
 
     cid = new_case_id()
     try:
@@ -144,6 +150,9 @@ def menu_set_override():
         days = int(input("  Custom interval_days: ").strip())
     except (ValueError, EOFError):
         print("  Invalid number.")
+        return
+    if not 1 <= days <= 30:
+        print("  Please enter a number between 1 and 30.")
         return
     CASE_OVERRIDES[cid] = {"interval_days": days}
     print(f"  Override set for {cid}: interval_days={days}")

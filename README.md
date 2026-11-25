@@ -30,7 +30,7 @@ python test_smoke.py    # Smoke tests
 | 12 | Regenerate demo data |
 | 0 | Exit |
 
-## Unit 1 topic mapping
+## topic mapping
 
 | Topic | Where used |
 |-------|-----------|

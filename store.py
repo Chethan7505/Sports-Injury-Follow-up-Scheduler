@@ -109,6 +109,10 @@ def generate_demo_data(seed=2026):
             else:
                 status = "pending"
 
+            # Unit1: while loop (cap pending bookings per day at 3)
+            while status == "pending" and sum(1 for f in followups if f.status == "pending" and f.due == due) >= 3:
+                due = _shift_off_sunday(due + datetime.timedelta(days=1))
+
             fu = FollowUp(fid=fid, case_id=cid, due=due,
                           physio=physio, status=status, tasks=tasks)
             followups.append(fu)
