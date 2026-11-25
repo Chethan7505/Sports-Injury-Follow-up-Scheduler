@@ -16,3 +16,8 @@ Implemented severity triage rescheduling (severe > moderate > mild, ties broken 
 Added slot note line for diverted appointments and updated default Why explanation text.
 Individual rebooking events and count summary logged in audit; added v1.1 smoke tests.
 Next: Phase 1 student viva presentation.
+
+## 2026-11-26 (v1.2)
+Only mark rebooked after slot found; initialize OrderedDict history on new cases; updated stats label.
+Wrapped all generator expressions in comprehensions; added v1.2 rebooked count parity and scheduling smoke tests.
+Next: Phase 1 project viva.

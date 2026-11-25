@@ -1,6 +1,7 @@
 # main.py - Console UI for the Sports Injury Follow-up Scheduler
 import sys       # Unit1: import
 import os        # Unit1: import
+from collections import OrderedDict  # Unit1: collections
 
 from config import (SPORTS, INJURY_TASKS, SEVERITIES, PHYSIOS,
                      CASE_OVERRIDES)
@@ -83,6 +84,8 @@ def menu_add_case():
             "name": name, "age": age, "sport": sport,
             "injury": injury, "severity": severity, "physio": physio,
         }
+        history[cid] = OrderedDict()
+        history[cid][0] = f"Case created for {name}"
         print(f"  Created case {cid} for {name}.")
     except ValueError as e:  # Unit1: try/except
         print(f"  Error: {e}")
@@ -174,7 +177,7 @@ def menu_stats():
     injury_counter, missed_by_physio, upcoming_c, missed_c, done_c = stats()
     print(f"\n  === Statistics ===")
     print(f"  Upcoming: {upcoming_c}  |  Missed: {missed_c}  |  Done: {done_c}")
-    print(f"\n  Injury counts:")
+    print(f"\n  Injury counts (by follow-up):")
     for injury, count in injury_counter.most_common():
         print(f"    {injury:<22} {count}")
     if missed_by_physio:

@@ -71,8 +71,8 @@ def _find_demo_slot(cid, start_date, direction=1):
         d = d + datetime.timedelta(days=1 if direction >= 0 else -1)
     while True:
         if d.weekday() != 6:
-            pending_count = sum(1 for f in followups if f.status == "pending" and f.due == d)
-            case_has_pending = any(f.case_id == cid and f.due == d and f.status == "pending" for f in followups)
+            pending_count = sum([1 for f in followups if f.status == "pending" and f.due == d])
+            case_has_pending = any([f.case_id == cid and f.due == d and f.status == "pending" for f in followups])
             if pending_count < 3 and not case_has_pending:
                 return d
         d = d + datetime.timedelta(days=1 if direction >= 0 else -1)
@@ -181,7 +181,7 @@ def generate_demo_data(seed=2026):
                 break
             if cid in today_cases:
                 continue
-            current_today_count = sum(1 for f in followups if f.due == today and f.status == "pending")
+            current_today_count = sum([1 for f in followups if f.due == today and f.status == "pending"])
             if current_today_count >= 3:
                 break
             candidate_idxs = [i for i, f in enumerate(followups)

@@ -1,6 +1,6 @@
 # scheduler.py - Scheduling logic, iterators, and operations
 import datetime  # Unit1: import
-from collections import Counter, defaultdict, deque  # Unit1: collections
+from collections import Counter, defaultdict, deque, OrderedDict  # Unit1: collections
 
 from config import PHYSIOS, INJURY_TASKS, SEVERITY_TASKS
 from audit import audit, log_audit
@@ -59,7 +59,7 @@ def assign_tasks(case):
 def booked():
     """Return Counter of due dates for pending follow-ups."""
     # Unit1: Counter / comprehension
-    return Counter(f.due for f in followups if f.status == "pending")
+    return Counter([f.due for f in followups if f.status == "pending"])
 
 
 # ----- validate_case_id decorator -----
@@ -111,7 +111,7 @@ def _schedule_followup_inner(case_id, start=None):
 
             # Log to history
             if case_id not in history:
-                history[case_id] = {}
+                history[case_id] = OrderedDict()
             seq = len(history[case_id])
             history[case_id][seq] = f"{fid} scheduled on {day.strftime('%a %d-%b-%Y')}"
 
@@ -173,12 +173,6 @@ def auto_reschedule():
     today = datetime.date.today()
 
     for f in missed:
-        # Mark old as rebooked
-        for i, fu in enumerate(followups):
-            if fu.fid == f.fid:
-                followups[i] = fu._replace(status="rebooked")
-                break
-
         case = registry[f.case_id]
         rules = build_rules(f.case_id)
         interval = rules["interval_days"]
@@ -189,23 +183,32 @@ def auto_reschedule():
             continue
         new_fu, why = result
 
-        if new_fu is not None:
-            tasks_str = ", ".join(sorted(new_fu.tasks))
-            slot_note = (
-                f"  -> Slot note: wanted {wanted_date.strftime('%a %d-%b-%Y')} (full or unavailable), next free slot used\n"
-                if new_fu.due != wanted_date else ""
-            )
-            block = (
-                f"{f.fid} | {case['name']} ({case['sport']}, {case['injury']}, "
-                f"{case['severity'].upper()}) | missed {f.due.strftime('%a %d-%b-%Y')}\n"
-                f"  -> Rescheduled: {new_fu.due.strftime('%a %d-%b-%Y')} with {new_fu.physio}\n"
-                f"  -> Tasks: {tasks_str}\n"
-                f"{slot_note}"
-                f"  -> Why: {why}"
-            )
-            explanations.append(block)
-            log_audit("auto_reschedule",
-                      f"{f.fid} -> {new_fu.fid} ({new_fu.case_id}, {new_fu.due.strftime('%a %d-%b-%Y')})")
+        if new_fu is None:
+            explanations.append(f"{f.fid} | {case['name']} | NOT rebooked: {why}")
+            continue
+
+        # Mark old as rebooked only after successful booking
+        for i, fu in enumerate(followups):
+            if fu.fid == f.fid:
+                followups[i] = fu._replace(status="rebooked")
+                break
+
+        tasks_str = ", ".join(sorted(new_fu.tasks))
+        slot_note = (
+            f"  -> Slot note: wanted {wanted_date.strftime('%a %d-%b-%Y')} (full or unavailable), next free slot used\n"
+            if new_fu.due != wanted_date else ""
+        )
+        block = (
+            f"{f.fid} | {case['name']} ({case['sport']}, {case['injury']}, "
+            f"{case['severity'].upper()}) | missed {f.due.strftime('%a %d-%b-%Y')}\n"
+            f"  -> Rescheduled: {new_fu.due.strftime('%a %d-%b-%Y')} with {new_fu.physio}\n"
+            f"  -> Tasks: {tasks_str}\n"
+            f"{slot_note}"
+            f"  -> Why: {why}"
+        )
+        explanations.append(block)
+        log_audit("auto_reschedule",
+                  f"{f.fid} -> {new_fu.fid} ({new_fu.case_id}, {new_fu.due.strftime('%a %d-%b-%Y')})")
 
     return explanations
 
@@ -214,14 +217,14 @@ def todays_queue():
     """Return a deque of pending follow-ups due today."""
     today = datetime.date.today()
     # Unit1: deque / comprehension
-    return deque(f for f in followups if f.status == "pending" and f.due == today)
+    return deque([f for f in followups if f.status == "pending" and f.due == today])
 
 
 def stats():
     """Return injury Counter, missed-by-physio defaultdict, and status counts."""
     # Unit1: Counter
-    injury_counter = Counter(registry[f.case_id]["injury"]
-                             for f in followups if f.case_id in registry)
+    injury_counter = Counter([registry[f.case_id]["injury"]
+                             for f in followups if f.case_id in registry])
     # Unit1: defaultdict
     missed_by_physio = defaultdict(list)
     for f in get_missed():
