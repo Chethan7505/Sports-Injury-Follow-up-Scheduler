@@ -24,5 +24,3 @@ Next: Phase 1 project viva.
 
 ## 2026-11-27
 Added Python bytecode cache rules to .gitignore and removed tracked __pycache__ files.
-Removed the completed cleanup instruction from this handoff.
-Next: Phase 1 project viva.
