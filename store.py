@@ -4,7 +4,7 @@ import datetime        # Unit1: import
 from collections import namedtuple, UserDict, OrderedDict  # Unit1: collections
 
 from config import (SPORTS, INJURY_TASKS, SEVERITIES, SEVERITY_TASKS,
-                     PHYSIOS, FIRST_NAMES)
+                     PHYSIOS, SEVERE_DOCTOR, FIRST_NAMES)
 
 # Unit1: namedtuple (immutable record)
 FollowUp = namedtuple("FollowUp", "fid case_id due physio status tasks")
@@ -30,6 +30,8 @@ class CaseRegistry(UserDict):
             raise ValueError(f"Unknown injury: {case['injury']}")
         if case["physio"] not in PHYSIOS:
             raise ValueError(f"Unknown physio: {case['physio']}")
+        if case["severity"] == "severe":
+            case = {**case, "physio": SEVERE_DOCTOR}
         super().__setitem__(key, case)
 
 
@@ -101,7 +103,7 @@ def generate_demo_data(seed=2026):
         sport = random.choice(SPORTS)
         injury = random.choice(injuries)
         severity = random.choice(SEVERITIES)
-        physio = random.choice(PHYSIOS)
+        physio = SEVERE_DOCTOR if severity == "severe" else random.choice(PHYSIOS)
         case = {
             "name": name, "age": age, "sport": sport,
             "injury": injury, "severity": severity, "physio": physio,
@@ -165,10 +167,12 @@ def generate_demo_data(seed=2026):
     missed_fups = [f for f in followups if f.due < today and f.status == "pending"]
     physios_in_missed = {f.physio for f in missed_fups}
     if len(physios_in_missed) < 2 and missed_fups:
-        current_p = missed_fups[0].physio
+        non_severe = [f for f in missed_fups if registry[f.case_id]["severity"] != "severe"]
+        target = non_severe[0] if non_severe else missed_fups[0]
+        current_p = target.physio
         alt_p = [p for p in PHYSIOS if p != current_p][0]
         for idx, f in enumerate(followups):
-            if f.fid == missed_fups[0].fid:
+            if f.fid == target.fid:
                 followups[idx] = f._replace(physio=alt_p)
                 break
 

@@ -1,15 +1,33 @@
-# Sports Injury Follow-up Scheduler
+# Ngrok — Sports Injury Follow-up Scheduler
 
-A console application for a sports department to manage fictional injury cases,
-schedule follow-up appointments, assign rehab tasks, and auto-reschedule missed
-follow-ups with rule explanations.
+A full-stack sports injury follow-up scheduler with a **React + Three.js (`WebThreads`)** web UI, a **Flask** REST API, and an interactive Python console app. Schedules follow-up appointments, assigns rehab tasks, routes all `severe` cases to **Dr. Deep Raj**, and auto-reschedules missed follow-ups with rule explanations.
 
 ## How to run
 
+> Run all commands below from the project root (`Sports-Injury-Follow-up-Scheduler`).
+
+### First-time setup
+
+```bash
+python3 -m pip install flask flask-cors && (cd frontend && npm install)
 ```
-python main.py          # Interactive menu
-python main.py --demo   # Non-interactive demo
-python test_smoke.py    # Smoke tests
+
+### Run the Web App (starts both Backend + Frontend)
+
+```bash
+cd frontend && npm run dev
+```
+
+*(Vite automatically starts `api.py` on `http://127.0.0.1:5000` if it is not already running, or you can run `python3 api.py` in a separate terminal first.)*
+
+Open **http://localhost:3000/** in your browser.
+
+### Console App & Tests
+
+```bash
+python3 main.py          # Interactive menu
+python3 main.py --demo   # Non-interactive demo
+python3 test_smoke.py    # Smoke tests
 ```
 
 ## Menu options

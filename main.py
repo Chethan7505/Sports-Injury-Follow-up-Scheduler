@@ -4,7 +4,7 @@ import os        # Unit1: import
 from collections import OrderedDict  # Unit1: collections
 
 from config import (SPORTS, INJURY_TASKS, SEVERITIES, PHYSIOS,
-                     CASE_OVERRIDES)
+                     SEVERE_DOCTOR, CASE_OVERRIDES)
 from audit import show_audit_log
 from store import (registry, followups, history, generate_demo_data,
                    new_case_id)
@@ -75,8 +75,12 @@ def menu_add_case():
     print(f"  Severities: {', '.join(SEVERITIES)}")
     severity = pick("  Severity: ", SEVERITIES)
 
-    print(f"  Physios: {', '.join(PHYSIOS)}")
-    physio = pick("  Physio: ", PHYSIOS)
+    if severity == "severe":
+        physio = SEVERE_DOCTOR
+        print(f"  Physio: {physio} (auto-assigned for severe case)")
+    else:
+        print(f"  Physios: {', '.join(PHYSIOS)}")
+        physio = pick("  Physio: ", PHYSIOS)
 
     cid = new_case_id()
     try:

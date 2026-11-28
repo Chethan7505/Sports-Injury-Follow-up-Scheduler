@@ -25,7 +25,8 @@ SEVERITY_TASKS = {
 }
 
 # Unit1: list of str
-PHYSIOS = ["Dr. Meera", "Dr. Arjun", "Dr. Kavya"]
+SEVERE_DOCTOR = "Dr. Deep Raj"
+PHYSIOS = ["Dr. Meera", "Dr. Arjun", "Dr. Kavya", SEVERE_DOCTOR]
 
 # Unit1: dict (default scheduling rules)
 DEFAULT_RULES = {"interval_days": 7, "max_per_day": 3}

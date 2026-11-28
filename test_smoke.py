@@ -28,7 +28,7 @@ def test_explain_severity_rule():
     cid = new_case_id()
     registry[cid] = {
         "name": "TestPlayer", "age": 25, "sport": "kabaddi",
-        "injury": "ACL tear", "severity": "severe", "physio": "Dr. Meera",
+        "injury": "ACL tear", "severity": "severe", "physio": "Dr. Deep Raj",
     }
     rules = build_rules(cid)
     layer, value, overridden = explain(rules, "interval_days")
@@ -138,13 +138,26 @@ def test_v1_2_spec_requirements():
     cid = new_case_id()
     registry[cid] = {
         "name": "NewPlayer", "age": 21, "sport": "cricket",
-        "injury": "hamstring strain", "severity": "mild", "physio": "Dr. Arjun",
+        "injury": "hamstring strain", "severity": "mild", "physio": "Dr. Deep Raj",
     }
     result = schedule_followup(cid)
     assert isinstance(result, tuple) and len(result) == 2, f"Expected 2-tuple, got {result}"
     fu, explanation = result
     assert fu is not None, f"Expected FollowUp object, got None: {explanation}"
     print("  PASS: Spec v1.2 rebooked count matches added, and new case scheduled successfully")
+
+
+def test_severe_cases_assigned_to_dr_deep_raj():
+    """All severe cases and their scheduled follow-ups are assigned to Dr. Deep Raj."""
+    generate_demo_data()
+    for cid, case in registry.items():
+        if case["severity"] == "severe":
+            assert case["physio"] == "Dr. Deep Raj", f"Severe case {cid} assigned to {case['physio']}"
+    auto_reschedule()
+    for f in followups:
+        if registry[f.case_id]["severity"] == "severe":
+            assert f.physio == "Dr. Deep Raj", f"Severe follow-up {f.fid} assigned to {f.physio}"
+    print("  PASS: All severe cases and follow-ups assigned to Dr. Deep Raj")
 
 
 # ----- Run all tests -----
@@ -155,4 +168,5 @@ test_auto_reschedule_clears_missed()
 test_max_per_day_not_exceeded()
 test_v1_1_spec_requirements()
 test_v1_2_spec_requirements()
+test_severe_cases_assigned_to_dr_deep_raj()
 print("\n  ALL TESTS PASSED")

@@ -2,7 +2,7 @@
 import datetime  # Unit1: import
 from collections import Counter, defaultdict, deque, OrderedDict  # Unit1: collections
 
-from config import PHYSIOS, INJURY_TASKS, SEVERITY_TASKS
+from config import PHYSIOS, SEVERE_DOCTOR, INJURY_TASKS, SEVERITY_TASKS
 from audit import audit, log_audit
 from store import registry, followups, history, new_followup_id, FollowUp
 from rules import build_rules, explain
@@ -92,7 +92,7 @@ def _schedule_followup_inner(case_id, start=None):
     for day in slots:  # Unit1: for with iterator
         if current_booked[day] < max_per_day and day not in case_pending_dates:
             case = registry[case_id]
-            physio = next(_physio_cycle)
+            physio = SEVERE_DOCTOR if case["severity"] == "severe" else next(_physio_cycle)
             tasks = assign_tasks(case)
             fid = new_followup_id()
             fu = FollowUp(fid=fid, case_id=case_id, due=day,
