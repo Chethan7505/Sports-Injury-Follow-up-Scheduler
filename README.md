@@ -1,6 +1,6 @@
 # Ngrok — Sports Injury Follow-up Scheduler
 
-A full-stack sports injury follow-up scheduler with a **React + Three.js (`WebThreads`)** web UI, a **Flask** REST API, and an interactive Python console app. Schedules follow-up appointments, assigns rehab tasks, routes all `severe` cases to **Dr. Deep Raj**, and auto-reschedules missed follow-ups with rule explanations.
+
 
 ## How to run
 
